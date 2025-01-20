@@ -22,7 +22,7 @@ Description=Run Ansible Playbook at boot
 After=network.target
 
 [Service]
-ExecStart=/bin/bash -c "curl -sL https://raw.githubusercontent.com/mfedatto/mkhouse-homelab/refs/heads/master/ansible-playbook.yaml -o /tmp/ansible-playbook.yaml && ansible-playbook /tmp/ansible-playbook.yaml"
+ExecStart=/bin/bash -c "curl -sL https://raw.githubusercontent.com/mfedatto/mkhouse-homelab/refs/heads/master/ansible-on-boot/ansible-playbook.yaml -o /tmp/ansible-playbook.yaml && ansible-playbook /tmp/ansible-playbook.yaml"
 Type=oneshot
 RemainAfterExit=true
 
