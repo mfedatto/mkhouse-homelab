@@ -1,0 +1,66 @@
+---
+- name: Ensure Docker is installed and user can interact without sudo
+  hosts: localhost
+  become: yes
+  vars_files:
+    - /home/mkadmin/ansible/vars/mkadmin.yml
+  tasks:
+    - name: Ensure the mkadmin user exists
+      user:
+        name: "mkadmin"
+        password: "{{ mkadmin_password | password_hash('sha512') }}"
+        state: present
+        create_home: yes
+        shell: /bin/bash
+
+    - name: Ensure mkadmin user is in the sudo group
+      user:
+        name: "mkadmin"
+        groups: sudo
+        append: yes
+
+    - name: Generate vault password and store it securely
+      command: >
+        bash -c "echo {{ lookup('password', '/dev/null length=16 chars=ascii_letters+digits+punctuation') }} > /home/mkadmin/ansible/vault_password.txt"
+      args:
+        creates: /home/mkadmin/ansible/vault_password.txt
+
+    - name: Set permissions for vault password file
+      file:
+        path: /home/mkadmin/ansible/vault_password.txt
+        owner: mkadmin
+        group: mkadmin
+        mode: '0600'
+
+    - name: Ensure the Ansible Vault file exists and is encrypted
+      command: >
+        bash -c "if [ ! -f /home/mkadmin/ansible/vars/mkadmin.yml ]; then
+        echo 'mkadmin_password: \"{{ mkadmin_password }}\"' > /home/mkadmin/ansible/vars/mkadmin.yml;
+        ansible-vault encrypt --vault-password-file /home/mkadmin/ansible/vault_password.txt /home/mkadmin/ansible/vars/mkadmin.yml;
+        fi"
+
+    - name: Download Docker install script
+      get_url:
+        url: https://get.docker.com
+        dest: /tmp/get-docker.sh
+        mode: '0755'
+
+    - name: Run Docker install script
+      command: sh /tmp/get-docker.sh
+
+    - name: Add mkadmin user to docker group
+      user:
+        name: "mkadmin"
+        groups: docker
+        append: yes
+
+    - name: Add ansible user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Restart Docker service to apply changes
+      service:
+        name: docker
+        state: restarted
