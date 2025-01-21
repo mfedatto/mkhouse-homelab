@@ -7,14 +7,12 @@ fi
 
 MKADMIN_PASSWORD=$1
 
-# Função para gerar uma senha aleatória
 generate_password() {
     tr -dc 'A-Za-z0-9!@#$%^&*()_+{}[]|:;<>,.?/~`-=' </dev/urandom | head -c 16
 }
 
 VAULT_PASSWORD=$(generate_password)
 
-# Verificar se a senha foi gerada corretamente
 if [ -z "$VAULT_PASSWORD" ]; then
     echo "Failed to generate vault password."
     exit 1
@@ -48,7 +46,6 @@ log "Generating vault password and storing it securely..."
 echo "$VAULT_PASSWORD" | sudo tee $VAULT_PASSWORD_FILE &>> $LOG_FILE
 sudo chmod 600 $VAULT_PASSWORD_FILE
 
-# Verificar se o arquivo vault_password.txt está vazio e falhar se necessário
 if [ ! -s $VAULT_PASSWORD_FILE ]; then
     log "Vault password file is empty. Exiting..."
     exit 1
