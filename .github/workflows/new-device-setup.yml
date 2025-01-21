@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'ansible/inventory/**'
   workflow_dispatch:
 
 jobs:
@@ -25,9 +27,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Debug
-        run: echo "Debugging step to check if workflow is triggered"
-
       - name: Ensure mkadmin user exists
         env:
           MKADMIN_USERNAME: ${{ vars.MKADMIN_USERNAME }}
@@ -37,7 +36,7 @@ jobs:
               echo "User '${MKADMIN_USERNAME}' already exists."
           else
               sudo useradd -m -s /bin/bash "${MKADMIN_USERNAME}"
-              echo "${MKADMIN_USERNAME}:${MKADMIN_PASSWORD}" | sudo chpasswd
-              sudo usermod -aG sudo "${MKADMIN_USERNAME}"
+              echo "${MKADMIN_USERNAME}:${NEW_USER_PASSWORD}" | sudo chpasswd
+              sudo usermod -aG sudo "${MKADMIN_PASSWORD}"
               echo "User '${MKADMIN_USERNAME}' created."
           fi
