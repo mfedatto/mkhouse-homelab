@@ -1,14 +1,22 @@
 #!/bin/bash
 
 if [ -z "$1" ]; then
-    echo "Usage: $0 <secure_password>"
+    echo "Usage: $0 <mkadmin_password>"
     exit 1
 fi
 
-SECURE_PASSWORD=$1
+MKADMIN_PASSWORD=$1
+
+# Função para gerar uma senha aleatória
+generate_password() {
+    tr -dc 'A-Za-z0-9!@#$%^&*()_+{}[]|:;<>,.?/~`-=' </dev/urandom | head -c 16
+}
+
+VAULT_PASSWORD=$(generate_password)
 TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
 LOG_FILE="/var/log/ansible-playbook-setup-$TIMESTAMP.log"
 VAULT_FILE="/home/mkadmin/ansible/vars/mkadmin.yml"
+VAULT_PASSWORD_FILE="/home/mkadmin/ansible/vault_password.txt"
 SERVICE_FILE="/etc/systemd/system/ansible-playbook.service"
 
 log() {
@@ -27,25 +35,19 @@ log "Creating Ansible Vault file directory..."
 sudo mkdir -p /home/mkadmin/ansible/vars &>> $LOG_FILE
 sudo chown -R mkadmin:mkadmin /home/mkadmin/ansible &>> $LOG_FILE
 
-if [ -f "$VAULT_FILE" ]; then
-    log "Ansible Vault file already exists. Checking if it is encrypted..."
-    
-    if sudo -u mkadmin ansible-vault view $VAULT_FILE &> /dev/null; then
-        log "Ansible Vault file is already encrypted. Skipping creation."
-    else
-        log "Ansible Vault file exists but is not encrypted. Please encrypt the file manually."
-        exit 1
-    fi
-else
-    log "Creating Ansible Vault file with initial content..."
-    sudo bash -c "cat <<EOF > $VAULT_FILE
-mkadmin_password: \"$SECURE_PASSWORD\"
-EOF"
-    sudo chown mkadmin:mkadmin $VAULT_FILE
+log "Generating vault password and storing it securely..."
+echo "$VAULT_PASSWORD" | sudo tee $VAULT_PASSWORD_FILE &>> $LOG_FILE
+sudo chmod 600 $VAULT_PASSWORD_FILE
+sudo chown mkadmin:mkadmin $VAULT_PASSWORD_FILE
 
-    log "Encrypting the Ansible Vault file..."
-    sudo -u mkadmin ansible-vault encrypt $VAULT_FILE &>> $LOG_FILE
-fi
+log "Creating Ansible Vault file with provided mkadmin password..."
+sudo bash -c "cat <<EOF > $VAULT_FILE
+mkadmin_password: \"$MKADMIN_PASSWORD\"
+EOF"
+sudo chown mkadmin:mkadmin $VAULT_FILE
+
+log "Encrypting the Ansible Vault file..."
+sudo -u mkadmin ansible-vault encrypt --vault-password-file $VAULT_PASSWORD_FILE $VAULT_FILE &>> $LOG_FILE
 
 log "Creating or overwriting systemd service file..."
 sudo bash -c 'cat <<EOF > /etc/systemd/system/ansible-playbook.service
@@ -54,7 +56,7 @@ Description=Run Ansible Playbook at boot
 After=network.target
 
 [Service]
-ExecStart=/bin/bash -c "ansible-playbook /home/mkadmin/ansible/docker-install.yml --ask-vault-pass"
+ExecStart=/bin/bash -c "ansible-playbook /home/mkadmin/ansible/docker-install.yml --vault-password-file /home/mkadmin/ansible/vault_password.txt"
 Type=oneshot
 RemainAfterExit=true
 
