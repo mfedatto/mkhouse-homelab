@@ -15,7 +15,7 @@ generate_password() {
 VAULT_PASSWORD=$(generate_password)
 TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
 LOG_FILE="/var/log/ansible-playbook-setup-$TIMESTAMP.log"
-PLAYBOOK_URL="https://raw.githubusercontent.com/mfedatto/mkhouse-homelab/refs/heads/master/ansible-on-boot/ansible-playbook.yaml"
+PLAYBOOK_URL="https://raw.githubusercontent.com/mfedatto/mkhouse-homelab/refs/heads/master/ansible-on-boot/boot-setup.yml"
 PLAYBOOK_PATH="/home/mkadmin/ansible/boot-setup.yml"
 VAULT_FILE="/home/mkadmin/ansible/vars/mkadmin.yml"
 VAULT_PASSWORD_FILE="/home/mkadmin/ansible/vault_password.txt"
@@ -46,6 +46,15 @@ log "Generating vault password and storing it securely..."
 echo "$VAULT_PASSWORD" | sudo tee $VAULT_PASSWORD_FILE &>> $LOG_FILE
 sudo chmod 600 $VAULT_PASSWORD_FILE
 sudo chown mkadmin:mkadmin $VAULT_PASSWORD_FILE
+
+# Verificar se o arquivo vault_password.txt está vazio
+if [ ! -s $VAULT_PASSWORD_FILE ]; then
+    log "Vault password file is empty. Regenerating password..."
+    VAULT_PASSWORD=$(generate_password)
+    echo "$VAULT_PASSWORD" | sudo tee $VAULT_PASSWORD_FILE &>> $LOG_FILE
+    sudo chmod 600 $VAULT_PASSWORD_FILE
+    sudo chown mkadmin:mkadmin $VAULT_PASSWORD_FILE
+fi
 
 log "Creating Ansible Vault file with provided mkadmin password..."
 sudo bash -c "cat <<EOF > $VAULT_FILE
