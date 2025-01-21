@@ -15,7 +15,7 @@ generate_password() {
 VAULT_PASSWORD=$(generate_password)
 TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
 LOG_FILE="/var/log/ansible-playbook-setup-$TIMESTAMP.log"
-PLAYBOOK_URL="https://raw.githubusercontent.com/mfedatto/mkhouse-homelab/refs/heads/master/ansible-on-boot/boot-setup.yml"
+PLAYBOOK_URL="https://raw.githubusercontent.com/mfedatto/mkhouse-homelab/refs/heads/master/ansible-on-boot/ansible-playbook.yaml"
 PLAYBOOK_PATH="/home/mkadmin/ansible/boot-setup.yml"
 VAULT_FILE="/home/mkadmin/ansible/vars/mkadmin.yml"
 VAULT_PASSWORD_FILE="/home/mkadmin/ansible/vault_password.txt"
@@ -56,13 +56,21 @@ sudo chown mkadmin:mkadmin $VAULT_FILE
 log "Encrypting the Ansible Vault file..."
 sudo -u mkadmin ansible-vault encrypt --vault-password-file $VAULT_PASSWORD_FILE $VAULT_FILE &>> $LOG_FILE
 
-if [ -f "$SERVICE_FILE" ]; then
+if systemctl list-units --full -all | grep -Fq "ansible-playbook.service"; then
     log "Service file exists. Backing up and removing existing service..."
     sudo cp $SERVICE_FILE $BACKUP_SERVICE_FILE &>> $LOG_FILE
     sudo systemctl stop ansible-playbook.service &>> $LOG_FILE
     sudo systemctl disable ansible-playbook.service &>> $LOG_FILE
-    sudo rm $SERVICE_FILE &>> $LOG_FILE
+    sudo rm -f $SERVICE_FILE &>> $LOG_FILE
     sudo systemctl daemon-reload &>> $LOG_FILE
+    sudo systemctl reset-failed ansible-playbook.service &>> $LOG_FILE
+    
+    log "Checking for residual symlinks..."
+    SYMLINKS=$(find /etc/systemd/system -type l -name "ansible-playbook.service")
+    if [ -n "$SYMLINKS" ]; then
+        log "Removing residual symlinks..."
+        echo "$SYMLINKS" | xargs sudo rm -f &>> $LOG_FILE
+    fi
 fi
 
 log "Creating new systemd service file..."
@@ -89,7 +97,7 @@ sudo systemctl enable ansible-playbook.service &>> $LOG_FILE
 log "Starting Ansible service manually..."
 if sudo systemctl start ansible-playbook.service &>> $LOG_FILE; then
     log "Service started successfully. Removing backup service file..."
-    sudo rm $BACKUP_SERVICE_FILE &>> $LOG_FILE
+    sudo rm -f $BACKUP_SERVICE_FILE &>> $LOG_FILE
 else
     log "Service failed to start. Restoring backup service file..."
     sudo mv $BACKUP_SERVICE_FILE $SERVICE_FILE &>> $LOG_FILE
