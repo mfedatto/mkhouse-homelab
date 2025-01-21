@@ -14,10 +14,11 @@ jobs:
     runs-on: "self-hosted"
     steps:
       - name: Approval
-        id: approval
-        run: |
-          echo "Waiting for manual approval..."
-          read -p "Press enter to continue"
+        env:
+          DEPLOY_APPROVERS: ${{ vars.DEPLOY_APPROVERS }}
+        uses: fjogeleit/workflow-approval-action@v2
+        with:
+          approvers: '${{ env.DEPLOY_APPROVERS }}'
 
   setup:
     needs: "approve-setup"
