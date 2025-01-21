@@ -37,14 +37,11 @@ sudo apt-get install -y ansible &>> $LOG_FILE
 log "Creating Ansible Vault file directory..."
 sudo mkdir -p /home/mkadmin/ansible/vars &>> $LOG_FILE
 
-log "Downloading the playbook..."
-sudo wget -O $PLAYBOOK_PATH $PLAYBOOK_URL &>> $LOG_FILE
-
 log "Generating vault password and storing it securely..."
 echo "$VAULT_PASSWORD" | sudo tee $VAULT_PASSWORD_FILE &>> $LOG_FILE
 sudo chmod 600 $VAULT_PASSWORD_FILE
 
-# Verificar se o arquivo vault_password.txt está vazio
+# Verificar se o arquivo vault_password.txt está vazio e regenerar se necessário
 if [ ! -s $VAULT_PASSWORD_FILE ]; then
     log "Vault password file is empty. Regenerating password..."
     VAULT_PASSWORD=$(generate_password)
@@ -84,7 +81,7 @@ Description=Run Ansible Playbook at boot
 After=network.target
 
 [Service]
-ExecStart=/bin/bash -c "ansible-playbook /home/mkadmin/ansible/boot-setup.yml --vault-password-file /home/mkadmin/ansible/vault_password.txt"
+ExecStart=/bin/bash -c "wget -O /home/mkadmin/ansible/boot-setup.yml $PLAYBOOK_URL && ansible-playbook /home/mkadmin/ansible/boot-setup.yml --vault-password-file /home/mkadmin/ansible/vault_password.txt"
 Type=oneshot
 RemainAfterExit=true
 
