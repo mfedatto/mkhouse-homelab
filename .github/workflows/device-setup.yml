@@ -1,0 +1,44 @@
+name: Setup devices on inventory
+run-name: ${{ github.actor }} is deploying devices on inventory (#${{ github.run_number }})
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'ansible/inventory/**'
+      - '.github/workflows/device-setup.yml'
+  workflow_dispatch:
+
+jobs:
+
+  setup:
+    runs-on: "self-hosted"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Ensure mkadmin user exists
+        env:
+          MKADMIN_USERNAME: ${{ vars.MKADMIN_USERNAME }}
+          MKADMIN_PASSWORD: ${{ secrets.MKADMIN_PASSWORD }}
+        run: |
+          if id "${MKADMIN_USERNAME}" &>/dev/null; then
+              echo "User '${MKADMIN_USERNAME}' already exists."
+          else
+              sudo useradd -m -s /bin/bash "${MKADMIN_USERNAME}"
+              echo "${MKADMIN_USERNAME}:${NEW_USER_PASSWORD}" | sudo chpasswd
+              sudo usermod -aG sudo "${MKADMIN_PASSWORD}"
+              echo "User '${MKADMIN_USERNAME}' created."
+          fi
+
+      - name: Install SSH server
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssh-server
+
+      - name: Enable SSH server
+        run: |
+          sudo systemctl enable ssh
+          sudo systemctl start ssh
