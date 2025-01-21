@@ -15,6 +15,8 @@ generate_password() {
 VAULT_PASSWORD=$(generate_password)
 TIMESTAMP=$(date '+%Y%m%d-%H%M%S')
 LOG_FILE="/var/log/ansible-playbook-setup-$TIMESTAMP.log"
+PLAYBOOK_URL="https://raw.githubusercontent.com/mfedatto/mkhouse-homelab/refs/heads/master/ansible-on-boot/boot-setup.yml"
+PLAYBOOK_PATH="/home/mkadmin/ansible/boot-setup.yml"
 VAULT_FILE="/home/mkadmin/ansible/vars/mkadmin.yml"
 VAULT_PASSWORD_FILE="/home/mkadmin/ansible/vault_password.txt"
 SERVICE_FILE="/etc/systemd/system/ansible-playbook.service"
@@ -34,6 +36,10 @@ sudo apt-get install -y ansible &>> $LOG_FILE
 log "Creating Ansible Vault file directory..."
 sudo mkdir -p /home/mkadmin/ansible/vars &>> $LOG_FILE
 sudo chown -R mkadmin:mkadmin /home/mkadmin/ansible &>> $LOG_FILE
+
+log "Downloading the playbook..."
+sudo wget -O $PLAYBOOK_PATH $PLAYBOOK_URL &>> $LOG_FILE
+sudo chown mkadmin:mkadmin $PLAYBOOK_PATH
 
 log "Generating vault password and storing it securely..."
 echo "$VAULT_PASSWORD" | sudo tee $VAULT_PASSWORD_FILE &>> $LOG_FILE
@@ -56,7 +62,7 @@ Description=Run Ansible Playbook at boot
 After=network.target
 
 [Service]
-ExecStart=/bin/bash -c "ansible-playbook /home/mkadmin/ansible/docker-install.yml --vault-password-file /home/mkadmin/ansible/vault_password.txt"
+ExecStart=/bin/bash -c "ansible-playbook /home/mkadmin/ansible/boot-setup.yml --vault-password-file /home/mkadmin/ansible/vault_password.txt"
 Type=oneshot
 RemainAfterExit=true
 
