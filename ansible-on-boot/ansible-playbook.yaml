@@ -19,6 +19,26 @@
         groups: sudo
         append: yes
 
+    - name: Generate vault password and store it securely
+      command: >
+        bash -c "echo {{ lookup('password', '/dev/null length=16 chars=ascii_letters+digits+punctuation') }} > /home/mkadmin/ansible/vault_password.txt"
+      args:
+        creates: /home/mkadmin/ansible/vault_password.txt
+
+    - name: Set permissions for vault password file
+      file:
+        path: /home/mkadmin/ansible/vault_password.txt
+        owner: mkadmin
+        group: mkadmin
+        mode: '0600'
+
+    - name: Ensure the Ansible Vault file exists and is encrypted
+      command: >
+        bash -c "if [ ! -f /home/mkadmin/ansible/vars/mkadmin.yml ]; then
+        echo 'mkadmin_password: \"{{ mkadmin_password }}\"' > /home/mkadmin/ansible/vars/mkadmin.yml;
+        ansible-vault encrypt --vault-password-file /home/mkadmin/ansible/vault_password.txt /home/mkadmin/ansible/vars/mkadmin.yml;
+        fi"
+
     - name: Download Docker install script
       get_url:
         url: https://get.docker.com
@@ -28,15 +48,15 @@
     - name: Run Docker install script
       command: sh /tmp/get-docker.sh
 
-    - name: Add ansible user to docker group
-      user:
-        name: "{{ ansible_user }}"
-        groups: docker
-        append: yes
-
     - name: Add mkadmin user to docker group
       user:
         name: "mkadmin"
+        groups: docker
+        append: yes
+
+    - name: Add ansible user to docker group
+      user:
+        name: "{{ ansible_user }}"
         groups: docker
         append: yes
 
