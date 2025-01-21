@@ -36,16 +36,13 @@ sudo apt-get install -y ansible &>> $LOG_FILE
 
 log "Creating Ansible Vault file directory..."
 sudo mkdir -p /home/mkadmin/ansible/vars &>> $LOG_FILE
-sudo chown -R mkadmin:mkadmin /home/mkadmin/ansible &>> $LOG_FILE
 
 log "Downloading the playbook..."
 sudo wget -O $PLAYBOOK_PATH $PLAYBOOK_URL &>> $LOG_FILE
-sudo chown mkadmin:mkadmin $PLAYBOOK_PATH
 
 log "Generating vault password and storing it securely..."
 echo "$VAULT_PASSWORD" | sudo tee $VAULT_PASSWORD_FILE &>> $LOG_FILE
 sudo chmod 600 $VAULT_PASSWORD_FILE
-sudo chown mkadmin:mkadmin $VAULT_PASSWORD_FILE
 
 # Verificar se o arquivo vault_password.txt está vazio
 if [ ! -s $VAULT_PASSWORD_FILE ]; then
@@ -53,17 +50,15 @@ if [ ! -s $VAULT_PASSWORD_FILE ]; then
     VAULT_PASSWORD=$(generate_password)
     echo "$VAULT_PASSWORD" | sudo tee $VAULT_PASSWORD_FILE &>> $LOG_FILE
     sudo chmod 600 $VAULT_PASSWORD_FILE
-    sudo chown mkadmin:mkadmin $VAULT_PASSWORD_FILE
 fi
 
 log "Creating Ansible Vault file with provided mkadmin password..."
 sudo bash -c "cat <<EOF > $VAULT_FILE
 mkadmin_password: \"$MKADMIN_PASSWORD\"
 EOF"
-sudo chown mkadmin:mkadmin $VAULT_FILE
 
 log "Encrypting the Ansible Vault file..."
-sudo -u mkadmin ansible-vault encrypt --vault-password-file $VAULT_PASSWORD_FILE $VAULT_FILE &>> $LOG_FILE
+sudo ansible-vault encrypt --vault-password-file $VAULT_PASSWORD_FILE $VAULT_FILE &>> $LOG_FILE
 
 if systemctl list-units --full -all | grep -Fq "ansible-playbook.service"; then
     log "Service file exists. Backing up and removing existing service..."
